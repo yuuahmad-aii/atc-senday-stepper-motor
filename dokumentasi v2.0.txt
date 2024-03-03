@@ -1,0 +1,7 @@
+dokumentasi versi 2.0
+-penulisan dokumentasi tanggal 27 jan 2024
+tambahan fitur
+- emergency stop dengan menggunakan pin input PA3
+- merapikan program 
+- menambah keterangan penting pada program menggunakan komentar
+- testing fitur emergency pada mesin lathe senday (26 jan 2024)

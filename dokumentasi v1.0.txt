@@ -1,0 +1,9 @@
+dokumentasi versi 2.0
+-penulisan dokumentasi tanggal 27 jan 2024
+tambahan fitur
+- mengurangi fitur atc supermill agar sesuai pada atc senday
+- membuang program yang tidak dibutuhkan
+- merapikan sedikit program
+
+limitasi
+- masih belum bisa handling emergency stop
