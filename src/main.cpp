@@ -27,8 +27,9 @@ const int inputPins[6] = {PB9, PB8, PA8, PB10, PB5, PB4}; // Replace with your i
 // motor interface
 AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 bool motorRun = false;            // nilainya false di awal program
+bool motorRunDariOn = false;      // nilainya false di awal program
 bool selesaiMotorRunning = true;  // nilainya true di awal program
-bool motorRunPertama = true;      // nilainya true di awal program
+bool motorRunPertama = false;     // nilainya false di awal program
 bool initialMotorRunning = false; // nilainya false di awal program
 // bool toolsSudahPas = false;
 
@@ -194,9 +195,36 @@ void loop()
         loop_orient();
     }
 
-    if (motorRun && motorRunPertama)
+    // if (motorRun && motorRunDariOn)
+    //     initialMotorRunning = true;
+    // else if (motorRun && (stepper.currentPosition() == 800 || stepper.currentPosition() == 1000))
+    // {
+    //     stepper.setCurrentPosition(0);
+    //     selesaiMotorRunning = false;
+    // }
+
+    // if (initialMotorRunning)
+    // {
+    //     stepper.setSpeed(1000);
+    //     stepper.moveTo(1000);
+    //     stepper.runSpeedToPosition();
+    //     selesaiMotorRunning = true;
+    //     motorRunDariOn = false;
+    //     initialMotorRunning = false;
+    // }
+    // else if (!selesaiMotorRunning)
+    // {
+    //     stepper.setSpeed(1000);
+    //     stepper.moveTo(800);
+    //     stepper.runSpeedToPosition();
+    //     selesaiMotorRunning = true;
+    // }
+
+    if (motorRun && !motorRunDariOn)
         initialMotorRunning = true;
-    else if (motorRun && (stepper.currentPosition() == 800 || stepper.currentPosition() == 1000))
+    else if (motorRun && !motorRunPertama)
+        motorRunPertama = true;
+    else if (motorRun && stepper.currentPosition() == 800)
     {
         stepper.setCurrentPosition(0);
         selesaiMotorRunning = false;
@@ -208,14 +236,15 @@ void loop()
         stepper.moveTo(1000);
         stepper.runSpeedToPosition();
         selesaiMotorRunning = true;
-        motorRunPertama = false;
         initialMotorRunning = false;
+        motorRunDariOn = true;
     }
-    else if (!selesaiMotorRunning)
+    else if (!selesaiMotorRunning || motorRunPertama)
     {
         stepper.setSpeed(1000);
         stepper.moveTo(800);
         stepper.runSpeedToPosition();
         selesaiMotorRunning = true;
+        // motorRunPertama = false;
     }
 }
