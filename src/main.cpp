@@ -62,6 +62,12 @@ void setup()
     stepper.setMaxSpeed(2000);
     stepper.setEnablePin(enablePin);
     // stepper.step(800.0);
+
+    digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
+    stepper.stop();
+    motorRunning = false;
+    digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
+    digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
 }
 
 uint8_t Parsing_data()
@@ -192,7 +198,7 @@ void loop()
         stepper.setCurrentPosition(0);
         selesaiMotorRunning = false;
     }
-    
+
     // if (toolsSudahPas)
     // {
     //     stepper.setSpeed(1000);
@@ -201,7 +207,7 @@ void loop()
     //     selesaiMotorRunning = true;
     //     toolsSudahPas = false;
     // }
-    // else 
+    // else
     if (!selesaiMotorRunning || motorRunningPertama)
     {
         stepper.setSpeed(1000);

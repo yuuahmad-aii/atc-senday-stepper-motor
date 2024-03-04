@@ -1,0 +1,6 @@
+tambahan fitur
+- kontrol stepper menggunakan pin pulse dan enable pada driver
+- menggunakan logika satu putaran setiap satu langkah, kecuali jika menerima perintah "C" maka langkah akan berhenti
+- buat atc hanya bergerak satu arah 
+limitasi
+- atc hanya bisa bergerak satu arah saj
