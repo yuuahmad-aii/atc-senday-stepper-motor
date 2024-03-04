@@ -26,10 +26,11 @@ const int inputPins[6] = {PB9, PB8, PA8, PB10, PB5, PB4}; // Replace with your i
 
 // motor interface
 AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
-bool motorRunning = false;
-bool selesaiMotorRunning = false;
-bool motorRunningPertama = false;
-bool toolsSudahPas = false;
+bool motorRun = false;            // nilainya false di awal program
+bool selesaiMotorRunning = true;  // nilainya true di awal program
+bool motorRunPertama = true;      // nilainya true di awal program
+bool initialMotorRunning = false; // nilainya false di awal program
+// bool toolsSudahPas = false;
 
 // Parsing
 static char line[40];
@@ -65,9 +66,11 @@ void setup()
 
     digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
     stepper.stop();
-    motorRunning = false;
+    motorRun = false;
+    // stepper.setCurrentPosition(-100); // kompensasi posisi awal tidak pas (tidak dgunakan karena tidak berdampak)
     digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
     digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
+    stepper.setCurrentPosition(0);
 }
 
 uint8_t Parsing_data()
@@ -87,7 +90,7 @@ uint8_t Parsing_data()
             // stepper.disableOutputs();
             digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
             stepper.stop();
-            motorRunning = false;
+            motorRun = false;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
             break;
@@ -95,7 +98,7 @@ uint8_t Parsing_data()
             // stepper.disableOutputs();
             digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
             stepper.stop();
-            motorRunning = false;
+            motorRun = false;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
@@ -103,7 +106,7 @@ uint8_t Parsing_data()
             // stepper.enableOutputs();
             digitalWriteFast(digitalPinToPinName(enablePin), LOW);
             // stepper.setSpeed(1000);
-            motorRunning = true;
+            motorRun = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
@@ -111,7 +114,7 @@ uint8_t Parsing_data()
             // stepper.enableOutputs();
             digitalWriteFast(digitalPinToPinName(enablePin), LOW);
             // stepper.setSpeed(1000);
-            motorRunning = true;
+            motorRun = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
@@ -119,8 +122,8 @@ uint8_t Parsing_data()
             // stepper.disableOutputs();
             digitalWriteFast(digitalPinToPinName(enablePin), LOW);
             stepper.stop();
-            motorRunning = false;
-            toolsSudahPas = true;
+            motorRun = false;
+            // toolsSudahPas = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
@@ -191,29 +194,28 @@ void loop()
         loop_orient();
     }
 
-    if (motorRunning && motorRunningPertama == false)
-        motorRunningPertama = true;
-    else if (motorRunning && stepper.currentPosition() == 800)
+    if (motorRun && motorRunPertama)
+        initialMotorRunning = true;
+    else if (motorRun && (stepper.currentPosition() == 800 || stepper.currentPosition() == 1000))
     {
         stepper.setCurrentPosition(0);
         selesaiMotorRunning = false;
     }
 
-    // if (toolsSudahPas)
-    // {
-    //     stepper.setSpeed(1000);
-    //     stepper.moveTo(0);
-    //     stepper.runSpeedToPosition();
-    //     selesaiMotorRunning = true;
-    //     toolsSudahPas = false;
-    // }
-    // else
-    if (!selesaiMotorRunning || motorRunningPertama)
+    if (initialMotorRunning)
+    {
+        stepper.setSpeed(1000);
+        stepper.moveTo(1000);
+        stepper.runSpeedToPosition();
+        selesaiMotorRunning = true;
+        motorRunPertama = false;
+        initialMotorRunning = false;
+    }
+    else if (!selesaiMotorRunning)
     {
         stepper.setSpeed(1000);
         stepper.moveTo(800);
         stepper.runSpeedToPosition();
         selesaiMotorRunning = true;
-        // motorRunningPertama = false;
     }
 }
