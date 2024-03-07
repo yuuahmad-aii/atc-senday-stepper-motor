@@ -27,10 +27,15 @@ const int inputPins[6] = {PB9, PB8, PA8, PB10, PB5, PB4}; // Replace with your i
 // motor interface
 AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 bool motorRun = false;            // nilainya false di awal program
+bool runHoming = true;            // nilainya false di awal program
 bool motorRunDariOn = false;      // nilainya false di awal program
-bool selesaiMotorRunning = true;  // nilainya true di awal program
+bool selesaiMotorRunning = false; // nilainya true di awal program
 bool motorRunPertama = false;     // nilainya false di awal program
 bool initialMotorRunning = false; // nilainya false di awal program
+// deteksi rising edge proxy 1
+int lastButtonState = 1; // Menyimpan status tombol sebelumnya
+int buttonState = 0;     // Menyimpan status tombol sebelumnya
+bool proxy1Rising = false;
 // bool toolsSudahPas = false;
 
 // Parsing
@@ -42,7 +47,12 @@ uint8_t action = 0;
 static size_t buffer_pos = 0;
 
 // data kirim ke pc
-int data[] = {0, 0, 0, 0, 0, 0, 0, 0};
+int data[] = {0, 0, 0, 0, 0, 0};
+int dataTerakhir[] = {0, 0, 0, 0, 0, 0};
+
+int bounce = 10;
+bool status;
+unsigned long timestamp;
 
 void setup()
 {
@@ -68,7 +78,6 @@ void setup()
     digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
     stepper.stop();
     motorRun = false;
-    // stepper.setCurrentPosition(-100); // kompensasi posisi awal tidak pas (tidak dgunakan karena tidak berdampak)
     digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
     digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
     stepper.setCurrentPosition(0);
@@ -164,7 +173,14 @@ void loop_orient()
     Serial.print("P");
     for (int i = 0; i < 6; i++)
     {
-        data[i] = !digitalReadFast(digitalPinToPinName(inputPins[i]));
+        // karena logicnya terbalik
+        int reading = !digitalReadFast(digitalPinToPinName(inputPins[i]));
+        if (reading != dataTerakhir[i])
+            timestamp = millis();
+        if ((millis() - timestamp) > bounce)
+            if (reading != data[i])
+                data[i] = reading;
+        dataTerakhir[i] = reading;
         Serial.print(data[i]);
     }
     Serial.println("");
@@ -195,33 +211,24 @@ void loop()
         loop_orient();
     }
 
-    // if (motorRun && motorRunDariOn)
-    //     initialMotorRunning = true;
-    // else if (motorRun && (stepper.currentPosition() == 800 || stepper.currentPosition() == 1000))
-    // {
-    //     stepper.setCurrentPosition(0);
-    //     selesaiMotorRunning = false;
-    // }
+    if (data[0] != lastButtonState)
+        if (data[0])
+            proxy1Rising = true;
+    lastButtonState = data[0];
 
-    // if (initialMotorRunning)
-    // {
-    //     stepper.setSpeed(1000);
-    //     stepper.moveTo(1000);
-    //     stepper.runSpeedToPosition();
-    //     selesaiMotorRunning = true;
-    //     motorRunDariOn = false;
-    //     initialMotorRunning = false;
-    // }
-    // else if (!selesaiMotorRunning)
-    // {
-    //     stepper.setSpeed(1000);
-    //     stepper.moveTo(800);
-    //     stepper.runSpeedToPosition();
-    //     selesaiMotorRunning = true;
-    // }
-
-    if (motorRun && !motorRunDariOn)
-        initialMotorRunning = true;
+    if (motorRun && runHoming)
+    {
+        stepper.setSpeed(1000);
+        stepper.runSpeed();
+        // stepper.runSpeedToPosition();
+        if (proxy1Rising)
+        {
+            runHoming = false;
+            motorRun = false;
+            stepper.stop();
+            stepper.setCurrentPosition(0);
+        }
+    }
     else if (motorRun && !motorRunPertama)
         motorRunPertama = true;
     else if (motorRun && stepper.currentPosition() == 800)
@@ -230,16 +237,7 @@ void loop()
         selesaiMotorRunning = false;
     }
 
-    if (initialMotorRunning)
-    {
-        stepper.setSpeed(1000);
-        stepper.moveTo(1000);
-        stepper.runSpeedToPosition();
-        selesaiMotorRunning = true;
-        initialMotorRunning = false;
-        motorRunDariOn = true;
-    }
-    else if (!selesaiMotorRunning || motorRunPertama)
+    if (!selesaiMotorRunning || motorRunPertama)
     {
         stepper.setSpeed(1000);
         stepper.moveTo(800);
