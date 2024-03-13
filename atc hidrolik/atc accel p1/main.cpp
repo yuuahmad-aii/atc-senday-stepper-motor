@@ -28,7 +28,7 @@ const int inputPins[6] = {PB9, PB8, PA8, PB10, PB5, PB4}; // Replace with your i
 AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 bool motorRun = false;            // nilainya false di awal program
 bool motorBrake = false;          // nilainya false di awal program
-bool runHoming = false;           // nilainya false di awal program
+bool runHoming = true;            // nilainya false di awal program
 bool selesaiMotorRunning = false; // nilainya true di awal program
 bool motorRunPertama = false;     // nilainya false di awal program
 
@@ -69,7 +69,7 @@ void setup()
     pinMode(OUTPUT1, OUTPUT);
 
     Serial.begin(9600); // Start serial communication
-    stepper.setMaxSpeed(5000);
+    stepper.setMaxSpeed(2000);
     stepper.setEnablePin(enablePin);
     // stepper.step(800.0);
 
@@ -131,7 +131,7 @@ uint8_t Parsing_data()
             digitalWriteFast(digitalPinToPinName(enablePin), LOW);
             stepper.stop();
             motorRun = false;
-            // motorBrake = true;
+            motorBrake = true;
             // toolsSudahPas = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
@@ -247,28 +247,32 @@ void loop()
     //     // motorRunPertama = false;
     // }
 
-    // if (motorRun && runHoming)
-    // {
-    //     stepper.setSpeed(1500);
-    //     stepper.runSpeed();
-    //     if (proxy1Rising)
-    //     {
-    //         runHoming = false;
-    //         motorRun = false;
-    //         stepper.stop();
-    //     }
-    // }
-    // else
-    if (motorRun && !runHoming)
+    if (motorRun && runHoming)
     {
-        stepper.setSpeed(1600);
+        stepper.setSpeed(1000);
+        stepper.runSpeed();
+        if (proxy1Rising)
+        {
+            runHoming = false;
+            motorRun = false;
+            stepper.stop();
+        }
+    }
+    else if (motorRun && !runHoming)
+    {
+        stepper.setSpeed(1000);
         stepper.runSpeed();
     }
-    else if (!motorRun && !runHoming)
+    else if (motorBrake && !runHoming)
     {
-        stepper.stop();
-        stepper.setCurrentPosition(0);
-        motorBrake = false;
+        stepper.setSpeed(1000);
+        stepper.runSpeed();
+        if (proxy1Rising)
+        {
+            stepper.stop();
+            stepper.setCurrentPosition(0);
+            motorBrake = false;
+        }
     }
     else
         stepper.stop();

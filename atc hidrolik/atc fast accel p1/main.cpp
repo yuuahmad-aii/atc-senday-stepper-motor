@@ -1,5 +1,7 @@
 #include <Arduino.h>
-#include "AccelStepper.h"
+// #include "AccelStepper.h"
+#include "FastAccelStepper.h"
+#include "AVRStepperPins.h"
 
 // emergency stop
 bool emergency = false;
@@ -14,7 +16,7 @@ unsigned long lastTimeButtonStateChanged = 0;
 // #define INPUT4 PB5  // proxy 5
 // #define INPUT5 PB4  // proxy 6
 // #define INPUT6 PB3  // emergency stop
-const int inputPins[6] = {PB9, PB8, PA8, PB10, PB5, PB4}; // Replace with your input pin numbers
+const int inputPins[6] = {PB9, PB8, PA8, PB10, PB5, PB4}; // input proxy
 
 // pinout untuk relay hidrolik
 #define OUTPUT0 PB14         // PIN UNTUK LOCK
@@ -24,11 +26,15 @@ const int inputPins[6] = {PB9, PB8, PA8, PB10, PB5, PB4}; // Replace with your i
 #define enablePin PC14       // PIN CCW (dir)
 #define motorInterfaceType 1 // artinya menggunakan stepper driver
 
+// accel stepper
+FastAccelStepperEngine engine = FastAccelStepperEngine();
+FastAccelStepper *stepper = NULL;
+
 // motor interface
-AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
+// AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 bool motorRun = false;            // nilainya false di awal program
 bool motorBrake = false;          // nilainya false di awal program
-bool runHoming = false;           // nilainya false di awal program
+bool runHoming = true;            // nilainya false di awal program
 bool selesaiMotorRunning = false; // nilainya true di awal program
 bool motorRunPertama = false;     // nilainya false di awal program
 
@@ -54,12 +60,20 @@ unsigned long timestamp;
 
 void setup()
 {
-    // pinMode(INPUT0, INPUT_PULLUP);
-    // pinMode(INPUT1, INPUT_PULLUP);
-    // pinMode(INPUT2, INPUT_PULLUP);
-    // pinMode(INPUT3, INPUT_PULLUP);
-    // pinMode(INPUT4, INPUT_PULLUP);
-    // pinMode(INPUT5, INPUT_PULLUP);
+    engine.init();
+    stepper = engine.stepperConnectToPin(stepPin);
+    if (stepper)
+    {
+        stepper->setDirectionPin(dirPin);
+        stepper->setEnablePin(enablePin);
+        stepper->setAutoEnable(true);
+        stepper->setSpeedInHz(1000); // step/s
+        stepper->setAcceleration(5000);
+    }
+    else
+        while (true)
+            delay(1000);
+
     for (int i = 0; i < 6; i++)
         pinMode(inputPins[i], INPUT_PULLUP);
 
@@ -69,16 +83,13 @@ void setup()
     pinMode(OUTPUT1, OUTPUT);
 
     Serial.begin(9600); // Start serial communication
-    stepper.setMaxSpeed(5000);
-    stepper.setEnablePin(enablePin);
-    // stepper.step(800.0);
 
     digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
-    stepper.stop();
+    stepper->stopMove();
     motorRun = false;
     digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
     digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
-    stepper.setCurrentPosition(0);
+    stepper->setCurrentPosition(0);
 }
 
 uint8_t Parsing_data()
@@ -95,44 +106,34 @@ uint8_t Parsing_data()
         switch (letter)
         {
         case 'L': // LOCK ATC
-            // stepper.disableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
-            stepper.stop();
+            stepper->disableOutputs();
+            stepper->forceStopAndNewPosition(0);
             motorRun = false;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
             break;
         case 'U': // UNLOCK ATC
-            // stepper.disableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
-            stepper.stop();
+            stepper->disableOutputs();
+            stepper->forceStopAndNewPosition(0);
             motorRun = false;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
         case 'A': // BERPUTAR CW
-            // stepper.enableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), LOW);
-            // stepper.setSpeed(1000);
+            stepper->enableOutputs();
             motorRun = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
         case 'B': // BERPUTAR CCW
-            // stepper.enableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), LOW);
-            // stepper.setSpeed(1000);
+            stepper->enableOutputs();
             motorRun = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
         case 'C': // BERHENTI BERPUTAR
-            // stepper.disableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), LOW);
-            stepper.stop();
-            motorRun = false;
-            // motorBrake = true;
-            // toolsSudahPas = true;
+            stepper->enableOutputs();
+            motorBrake = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
@@ -187,17 +188,17 @@ void loop_orient()
 
 void loop()
 {
-    if (millis() - lastTimeButtonStateChanged > 500)
-    {
-        byte keadaanEmergency = digitalRead(PA3);
-        if (keadaanEmergency != keadaanEmergencyTerakhir)
-        {
-            lastTimeButtonStateChanged = millis();
-            keadaanEmergencyTerakhir = keadaanEmergency;
-            // artinya tertrigger (karena emergency default low)
-            keadaanEmergency == HIGH ? emergency = true : emergency = false;
-        }
-    }
+    // if (millis() - lastTimeButtonStateChanged > 500)
+    // {
+    //     byte keadaanEmergency = digitalRead(PA3);
+    //     if (keadaanEmergency != keadaanEmergencyTerakhir)
+    //     {
+    //         lastTimeButtonStateChanged = millis();
+    //         keadaanEmergencyTerakhir = keadaanEmergency;
+    //         // artinya tertrigger (karena emergency default low)
+    //         keadaanEmergency == HIGH ? emergency = true : emergency = false;
+    //     }
+    // }
 
     // if (emergency)
     // {
@@ -247,29 +248,32 @@ void loop()
     //     // motorRunPertama = false;
     // }
 
-    // if (motorRun && runHoming)
-    // {
-    //     stepper.setSpeed(1500);
-    //     stepper.runSpeed();
-    //     if (proxy1Rising)
-    //     {
-    //         runHoming = false;
-    //         motorRun = false;
-    //         stepper.stop();
-    //     }
-    // }
-    // else
-    if (motorRun && !runHoming)
+    if (motorRun && runHoming)
     {
-        stepper.setSpeed(1600);
-        stepper.runSpeed();
+        stepper->setSpeedInHz(1000);
+        stepper->runForward();
+        if (proxy1Rising)
+        {
+            runHoming = false;
+            motorRun = false;
+            stepper->forceStopAndNewPosition(0);
+        }
     }
-    else if (!motorRun && !runHoming)
+    else if (motorRun && !runHoming)
     {
-        stepper.stop();
-        stepper.setCurrentPosition(0);
-        motorBrake = false;
+        stepper->setSpeedInHz(1000);
+        stepper->runForward();
+    }
+    else if (motorBrake && !runHoming)
+    {
+        stepper->setSpeedInHz(1000);
+        stepper->runForward();
+        if (proxy1Rising)
+        {
+            stepper->forceStopAndNewPosition(0);
+            motorBrake = false;
+        }
     }
     else
-        stepper.stop();
+        stepper->forceStopAndNewPosition(0);
 }
