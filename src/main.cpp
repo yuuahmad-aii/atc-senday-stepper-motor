@@ -32,9 +32,14 @@ bool runHoming = false;           // nilainya false di awal program
 bool selesaiMotorRunning = false; // nilainya true di awal program
 bool motorRunPertama = false;     // nilainya false di awal program
 
-// deteksi rising edge proxy 1
-int lastButtonState = 1; // Menyimpan status tombol sebelumnya
+// variabel untuk io proxy
 bool proxy1Rising = false;
+int nilaiBeban[8] = {1, 2, 4, 8};
+int nilaiTools[8] = {1, 2, 4, 8, 14, 13, 11, 7};
+int nilaiTotalBebanProxy = 0;
+int toolSekarang = 0;
+int toolDiinginkan = 0;
+bool atcBerjalan = false;
 
 // Parsing
 static char line[40];
@@ -71,6 +76,7 @@ void setup()
     Serial.begin(9600); // Start serial communication
     stepper.setMaxSpeed(5000);
     stepper.setEnablePin(enablePin);
+    stepper.setPinsInverted(false, false, true);
     // stepper.step(800.0);
 
     digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
@@ -95,46 +101,61 @@ uint8_t Parsing_data()
         switch (letter)
         {
         case 'L': // LOCK ATC
-            // stepper.disableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
+            stepper.disableOutputs();
             stepper.stop();
             motorRun = false;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
             break;
         case 'U': // UNLOCK ATC
-            // stepper.disableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
+            stepper.disableOutputs();
             stepper.stop();
             motorRun = false;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
         case 'A': // BERPUTAR CW
-            // stepper.enableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), LOW);
-            // stepper.setSpeed(1000);
+            stepper.enableOutputs();
             motorRun = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
         case 'B': // BERPUTAR CCW
-            // stepper.enableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), LOW);
-            // stepper.setSpeed(1000);
+            stepper.enableOutputs();
             motorRun = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
             break;
         case 'C': // BERHENTI BERPUTAR
-            // stepper.disableOutputs();
-            digitalWriteFast(digitalPinToPinName(enablePin), LOW);
+            stepper.enableOutputs();
             stepper.stop();
             motorRun = false;
-            // motorBrake = true;
-            // toolsSudahPas = true;
             digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
             digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
+            break;
+        case '1': // ganti tools 1
+            toolDiinginkan = 1;
+            break;
+        case '2': // ganti tools 2
+            toolDiinginkan = 2;
+            break;
+        case '3': // ganti tools 3
+            toolDiinginkan = 3;
+            break;
+        case '4': // ganti tools 4
+            toolDiinginkan = 4;
+            break;
+        case '5': // ganti tools 5
+            toolDiinginkan = 5;
+            break;
+        case '6': // ganti tools 6
+            toolDiinginkan = 6;
+            break;
+        case '7': // ganti tools 7
+            toolDiinginkan = 7;
+            break;
+        case '8': // ganti tools 8
+            toolDiinginkan = 8;
             break;
         }
     } // complete parsing
@@ -187,17 +208,17 @@ void loop_orient()
 
 void loop()
 {
-    if (millis() - lastTimeButtonStateChanged > 500)
-    {
-        byte keadaanEmergency = digitalRead(PA3);
-        if (keadaanEmergency != keadaanEmergencyTerakhir)
-        {
-            lastTimeButtonStateChanged = millis();
-            keadaanEmergencyTerakhir = keadaanEmergency;
-            // artinya tertrigger (karena emergency default low)
-            keadaanEmergency == HIGH ? emergency = true : emergency = false;
-        }
-    }
+    // if (millis() - lastTimeButtonStateChanged > 500)
+    // {
+    //     byte keadaanEmergency = digitalRead(PA3);
+    //     if (keadaanEmergency != keadaanEmergencyTerakhir)
+    //     {
+    //         lastTimeButtonStateChanged = millis();
+    //         keadaanEmergencyTerakhir = keadaanEmergency;
+    //         // artinya tertrigger (karena emergency default low)
+    //         keadaanEmergency == HIGH ? emergency = true : emergency = false;
+    //     }
+    // }
 
     // if (emergency)
     // {
@@ -210,12 +231,46 @@ void loop()
     loop_orient();
     // }
 
-    if (data[0] != lastButtonState)
+    if (data[0] != dataTerakhir[0])
         if (data[0])
             proxy1Rising = true;
         else
             proxy1Rising = false;
-    lastButtonState = data[0];
+    dataTerakhir[0] = data[0];
+
+    // baca tools ke berapa sekarang
+    for (size_t i = 2; i < 6; i++)
+    {
+        int nilaiBebanProxy = data[i] * nilaiBeban[i];
+        nilaiTotalBebanProxy = nilaiBebanProxy + nilaiTotalBebanProxy;
+    }
+    // baca tools sekarang
+    for (size_t i = 0; i < 8; i++)
+        nilaiTools[i] == nilaiTotalBebanProxy ? toolSekarang = i + 1 : toolSekarang = 0;
+    // reset nilai
+    nilaiTotalBebanProxy = 0;
+
+    if (toolSekarang != toolDiinginkan && !atcBerjalan)
+    {
+        // unlock atc, lalu berputar.
+        digitalWriteFast(digitalPinToPinName(enablePin), LOW);
+        digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
+        digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
+        delay(2000); // delay sebelum berjalan
+        atcBerjalan = true;
+        motorRun = true;
+    }
+    else if (toolSekarang == toolDiinginkan && data[0])
+    {
+        // berhenti, lalu lock atc
+        digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
+        stepper.stop();
+        delay(2000);
+        digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
+        digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
+        atcBerjalan = false;
+        motorRun = false;
+    }
 
     // if (motorRun && runHoming)
     // {
@@ -259,12 +314,25 @@ void loop()
     //     }
     // }
     // else
-    if (motorRun && !runHoming)
+    // if (motorRun && !runHoming)
+    // {
+    //     stepper.setSpeed(1600);
+    //     stepper.runSpeed();
+    // }
+    // else if (!motorRun && !runHoming)
+    // {
+    //     stepper.stop();
+    //     stepper.setCurrentPosition(0);
+    //     motorBrake = false;
+    // }
+    // else
+    //     stepper.stop();
+    if (motorRun)
     {
         stepper.setSpeed(1600);
         stepper.runSpeed();
     }
-    else if (!motorRun && !runHoming)
+    else if (!motorRun)
     {
         stepper.stop();
         stepper.setCurrentPosition(0);
