@@ -59,12 +59,6 @@ unsigned long timestamp;
 
 void setup()
 {
-    // pinMode(INPUT0, INPUT_PULLUP);
-    // pinMode(INPUT1, INPUT_PULLUP);
-    // pinMode(INPUT2, INPUT_PULLUP);
-    // pinMode(INPUT3, INPUT_PULLUP);
-    // pinMode(INPUT4, INPUT_PULLUP);
-    // pinMode(INPUT5, INPUT_PULLUP);
     for (int i = 0; i < 6; i++)
         pinMode(inputPins[i], INPUT_PULLUP);
 
@@ -130,32 +124,6 @@ uint8_t Parsing_data()
             stepper.enableOutputs();
             stepper.stop();
             motorRun = false;
-            digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
-            digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
-            break;
-        case '1': // ganti tools 1
-            toolDiinginkan = 1;
-            break;
-        case '2': // ganti tools 2
-            toolDiinginkan = 2;
-            break;
-        case '3': // ganti tools 3
-            toolDiinginkan = 3;
-            break;
-        case '4': // ganti tools 4
-            toolDiinginkan = 4;
-            break;
-        case '5': // ganti tools 5
-            toolDiinginkan = 5;
-            break;
-        case '6': // ganti tools 6
-            toolDiinginkan = 6;
-            break;
-        case '7': // ganti tools 7
-            toolDiinginkan = 7;
-            break;
-        case '8': // ganti tools 8
-            toolDiinginkan = 8;
             break;
         }
     } // complete parsing
@@ -208,125 +176,9 @@ void loop_orient()
 
 void loop()
 {
-    // if (millis() - lastTimeButtonStateChanged > 500)
-    // {
-    //     byte keadaanEmergency = digitalRead(PA3);
-    //     if (keadaanEmergency != keadaanEmergencyTerakhir)
-    //     {
-    //         lastTimeButtonStateChanged = millis();
-    //         keadaanEmergencyTerakhir = keadaanEmergency;
-    //         // artinya tertrigger (karena emergency default low)
-    //         keadaanEmergency == HIGH ? emergency = true : emergency = false;
-    //     }
-    // }
-
-    // if (emergency)
-    // {
-    //     digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
-    //     digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
-    // }
-    // else
-    // {
     parsing_function();
     loop_orient();
-    // }
 
-    if (data[0] != dataTerakhir[0])
-        if (data[0])
-            proxy1Rising = true;
-        else
-            proxy1Rising = false;
-    dataTerakhir[0] = data[0];
-
-    // baca tools ke berapa sekarang
-    for (size_t i = 2; i < 6; i++)
-    {
-        int nilaiBebanProxy = data[i] * nilaiBeban[i];
-        nilaiTotalBebanProxy = nilaiBebanProxy + nilaiTotalBebanProxy;
-    }
-    // baca tools sekarang
-    for (size_t i = 0; i < 8; i++)
-        nilaiTools[i] == nilaiTotalBebanProxy ? toolSekarang = i + 1 : toolSekarang = 0;
-    // reset nilai
-    nilaiTotalBebanProxy = 0;
-
-    if (toolSekarang != toolDiinginkan && !atcBerjalan)
-    {
-        // unlock atc, lalu berputar.
-        digitalWriteFast(digitalPinToPinName(enablePin), LOW);
-        digitalWriteFast(digitalPinToPinName(OUTPUT0), LOW);
-        digitalWriteFast(digitalPinToPinName(OUTPUT1), HIGH);
-        delay(2000); // delay sebelum berjalan
-        atcBerjalan = true;
-        motorRun = true;
-    }
-    else if (toolSekarang == toolDiinginkan && data[0])
-    {
-        // berhenti, lalu lock atc
-        digitalWriteFast(digitalPinToPinName(enablePin), HIGH);
-        stepper.stop();
-        delay(2000);
-        digitalWriteFast(digitalPinToPinName(OUTPUT0), HIGH);
-        digitalWriteFast(digitalPinToPinName(OUTPUT1), LOW);
-        atcBerjalan = false;
-        motorRun = false;
-    }
-
-    // if (motorRun && runHoming)
-    // {
-    //     stepper.setSpeed(1000);
-    //     stepper.runSpeed();
-    //     // stepper.runSpeedToPosition();
-    //     if (proxy1Rising)
-    //     {
-    //         runHoming = false;
-    //         motorRun = false;
-    //         stepper.stop();
-    //         stepper.setCurrentPosition(0);
-    //     }
-    // }
-    // else if (motorRun && !motorRunPertama)
-    //     motorRunPertama = true;
-    // else if (motorRun && stepper.currentPosition() == 800)
-    // {
-    //     stepper.setCurrentPosition(0);
-    //     selesaiMotorRunning = false;
-    // }
-
-    // if (!selesaiMotorRunning || motorRunPertama)
-    // {
-    //     stepper.setSpeed(1000);
-    //     stepper.moveTo(800);
-    //     stepper.runSpeedToPosition();
-    //     selesaiMotorRunning = true;
-    //     // motorRunPertama = false;
-    // }
-
-    // if (motorRun && runHoming)
-    // {
-    //     stepper.setSpeed(1500);
-    //     stepper.runSpeed();
-    //     if (proxy1Rising)
-    //     {
-    //         runHoming = false;
-    //         motorRun = false;
-    //         stepper.stop();
-    //     }
-    // }
-    // else
-    // if (motorRun && !runHoming)
-    // {
-    //     stepper.setSpeed(1600);
-    //     stepper.runSpeed();
-    // }
-    // else if (!motorRun && !runHoming)
-    // {
-    //     stepper.stop();
-    //     stepper.setCurrentPosition(0);
-    //     motorBrake = false;
-    // }
-    // else
-    //     stepper.stop();
     if (motorRun)
     {
         stepper.setSpeed(1600);
@@ -338,6 +190,6 @@ void loop()
         stepper.setCurrentPosition(0);
         motorBrake = false;
     }
-    else
-        stepper.stop();
+    // else
+    //     stepper.stop();
 }
